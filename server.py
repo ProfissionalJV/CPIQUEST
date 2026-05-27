@@ -2,9 +2,15 @@ from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import sqlite3
 import os
+import mimetypes
 
 app = Flask(__name__)
 CORS(app)
+
+# 🔥 FORÇA O MIME TYPE CORRETO PARA JS
+mimetypes.add_type('application/javascript', '.js')
+mimetypes.add_type('text/css', '.css')
+mimetypes.add_type('text/html', '.html')
 
 # Inicializa o banco
 def init_db():
@@ -25,16 +31,36 @@ def init_db():
 
 init_db()
 
-# Servir arquivos estáticos
+# ═══════════════════════════════════════════════════════════
+# ROTAS PARA SERVIR OS ARQUIVOS ESTÁTICOS
+# ═══════════════════════════════════════════════════════════
+
 @app.route('/')
 def index():
     return send_from_directory('.', 'index.html')
 
 @app.route('/<path:path>')
 def static_files(path):
-    return send_from_directory('.', path)
+    # 🔥 VERIFICA SE O ARQUIVO EXISTE
+    if os.path.exists(path):
+        # Força o mimetype correto para JS
+        if path.endswith('.js'):
+            return send_from_directory('.', path, mimetype='application/javascript')
+        return send_from_directory('.', path)
+    
+    # 🔥 TENTA PROCURAR NA PASTA simuladores/
+    simulador_path = os.path.join('simuladores', path)
+    if os.path.exists(simulador_path):
+        if path.endswith('.js'):
+            return send_from_directory('simuladores', path, mimetype='application/javascript')
+        return send_from_directory('simuladores', path)
+    
+    return "Arquivo não encontrado", 404
 
-# API
+# ═══════════════════════════════════════════════════════════
+# ROTAS DA API
+# ═══════════════════════════════════════════════════════════
+
 @app.route('/api/players', methods=['GET'])
 def get_players():
     conn = sqlite3.connect('jogos.db')
@@ -61,10 +87,12 @@ def create_player():
     conn = sqlite3.connect('jogos.db')
     c = conn.cursor()
     try:
-        c.execute('INSERT INTO players (user_email, display_name, total_score, current_stage, completed_stages, stage_stars, avatar_config) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                  (data['user_email'], data['display_name'], data.get('total_score', 0),
-                   data.get('current_stage', 1), str(data.get('completed_stages', [])),
-                   str(data.get('stage_stars', {})), str(data.get('avatar_config', {}))))
+        c.execute('''INSERT INTO players 
+            (user_email, display_name, total_score, current_stage, completed_stages, stage_stars, avatar_config) 
+            VALUES (?, ?, ?, ?, ?, ?, ?)''',
+            (data['user_email'], data['display_name'], data.get('total_score', 0),
+             data.get('current_stage', 1), str(data.get('completed_stages', [])),
+             str(data.get('stage_stars', {})), str(data.get('avatar_config', {}))))
         conn.commit()
         data['id'] = c.lastrowid
     except:
@@ -119,7 +147,19 @@ def search_player():
         })
     return jsonify(None)
 
+# ═══════════════════════════════════════════════════════════
+# ROTA PARA LISTAR ARQUIVOS (DEBUG)
+# ═══════════════════════════════════════════════════════════
+
+@app.route('/debug/files')
+def list_files():
+    import os
+    files = []
+    for root, dirs, filenames in os.walk('.'):
+        for filename in filenames:
+            files.append(os.path.join(root, filename))
+    return jsonify(files)
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
-
-
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)
