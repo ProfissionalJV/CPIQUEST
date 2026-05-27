@@ -2,7 +2,7 @@
 // InfoQuest — Lógica principal do jogo (VERSÃO CORRIGIDA)
 // ═══════════════════════════════════════════════════════════
 
-const API = 'http://localhost:5000/api';
+const API = 'https://cpiquest.onrender.com/api';
 
 let currentUser = null;
 let currentProfile = null;
