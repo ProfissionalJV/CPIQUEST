@@ -998,15 +998,21 @@ function renderQuiz() {
     </div>
 `;
 
-    // 🔥 EMBARALHAMENTO - COMENTADO PARA EVITAR ERRO
-    // const nivel = getNivelPegadinha();
-    // if (nivel === PEGADINHA_NIVEIS.dificil || nivel === PEGADINHA_NIVEIS.muitoDificil) {
-    //     const deveEmbaralhar = Math.random() < 0.5;
-    //     if (deveEmbaralhar) {
-    //         iniciarEmbaralhamentoSimples();
-    //     }
-    // }
-
+    // EMBARALHAMENTO DINÂMICO
+    const nivel = getNivelPegadinha();
+    if (nivel === PEGADINHA_NIVEIS.dificil || nivel === PEGADINHA_NIVEIS.muitoDificil) {
+        const deveEmbaralhar = Math.random() < 0.5;
+        if (deveEmbaralhar) {
+            // 🔥 CORREÇÃO: define a variável antes de usar
+            const textoCorretoOriginal = q.options[q.correct];
+            opcoesCorretasOriginal = textoCorretoOriginal;
+            indiceCorretoDinamico = finalCorrectIndex;
+            setTimeout(() => {
+                iniciarEmbaralhamentoDinamico();
+            }, 500);
+        }
+    }
+    
     // DISTRATOR PISCANTE
     if (finalDistratorIndex !== -1 && finalDistratorIndex < 5) {
         setTimeout(() => {
