@@ -7,10 +7,17 @@ import mimetypes
 app = Flask(__name__)
 CORS(app)
 
-# 🔥 FORÇA O MIME TYPE CORRETO PARA JS
+# 🔥🔥🔥 CONFIGURAÇÃO FORÇADA DE MIME TYPES 🔥🔥🔥
+mimetypes.init()
 mimetypes.add_type('application/javascript', '.js')
 mimetypes.add_type('text/css', '.css')
 mimetypes.add_type('text/html', '.html')
+mimetypes.add_type('image/png', '.png')
+mimetypes.add_type('image/jpg', '.jpg')
+mimetypes.add_type('image/jpeg', '.jpeg')
+mimetypes.add_type('image/gif', '.gif')
+mimetypes.add_type('audio/mpeg', '.mp3')
+mimetypes.add_type('audio/ogg', '.ogg')
 
 # Inicializa o banco
 def init_db():
@@ -32,30 +39,45 @@ def init_db():
 init_db()
 
 # ═══════════════════════════════════════════════════════════
-# ROTAS PARA SERVIR OS ARQUIVOS ESTÁTICOS
+# ROTAS PARA SERVIR ARQUIVOS ESTÁTICOS (COM MIME TYPE CORRETO)
 # ═══════════════════════════════════════════════════════════
 
 @app.route('/')
 def index():
-    return send_from_directory('.', 'index.html')
+    return send_from_directory('.', 'index.html', mimetype='text/html')
 
-@app.route('/<path:path>')
-def static_files(path):
-    # 🔥 VERIFICA SE O ARQUIVO EXISTE
-    if os.path.exists(path):
-        # Força o mimetype correto para JS
-        if path.endswith('.js'):
-            return send_from_directory('.', path, mimetype='application/javascript')
-        return send_from_directory('.', path)
-    
-    # 🔥 TENTA PROCURAR NA PASTA simuladores/
-    simulador_path = os.path.join('simuladores', path)
-    if os.path.exists(simulador_path):
-        if path.endswith('.js'):
-            return send_from_directory('simuladores', path, mimetype='application/javascript')
-        return send_from_directory('simuladores', path)
-    
+@app.route('/style.css')
+def serve_css():
+    return send_from_directory('.', 'style.css', mimetype='text/css')
+
+@app.route('/script.js')
+def serve_js():
+    return send_from_directory('.', 'script.js', mimetype='application/javascript')
+
+@app.route('/gameData.js')
+def serve_gamedata():
+    return send_from_directory('.', 'gameData.js', mimetype='application/javascript')
+
+@app.route('/practiceData.js')
+def serve_practicedata():
+    return send_from_directory('.', 'practiceData.js', mimetype='application/javascript')
+
+@app.route('/simuladores/<path:filename>')
+def serve_simuladores(filename):
+    filepath = os.path.join('simuladores', filename)
+    if os.path.exists(filepath):
+        if filename.endswith('.js'):
+            return send_from_directory('simuladores', filename, mimetype='application/javascript')
+        return send_from_directory('simuladores', filename)
     return "Arquivo não encontrado", 404
+
+@app.route('/img2/<path:filename>')
+def serve_img2(filename):
+    return send_from_directory('img2', filename)
+
+@app.route('/sounds/<path:filename>')
+def serve_sounds(filename):
+    return send_from_directory('sounds', filename)
 
 # ═══════════════════════════════════════════════════════════
 # ROTAS DA API
@@ -146,19 +168,6 @@ def search_player():
             'avatar_config': eval(row[7])
         })
     return jsonify(None)
-
-# ═══════════════════════════════════════════════════════════
-# ROTA PARA LISTAR ARQUIVOS (DEBUG)
-# ═══════════════════════════════════════════════════════════
-
-@app.route('/debug/files')
-def list_files():
-    import os
-    files = []
-    for root, dirs, filenames in os.walk('.'):
-        for filename in filenames:
-            files.append(os.path.join(root, filename))
-    return jsonify(files)
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
