@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InfoQuest - Computadores para Inclusão</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Nunito:wght@400;600;700;800;900&family=Press+Start+2P&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="app">
+        <!-- TELA DE LOGIN -->
+        <div id="login-screen" class="screen active">
+            <div class="login-container">
+                <div class="login-logo">
+                    <h1>CPI<span class="text-blue">Quest</span></h1>
+                    <p>Computadores para Inclusão</p>
+                </div>
+                <div class="login-card">
+                    <h2>Entrar no Jogo</h2>
+                    <div id="login-error" class="error-msg hidden"></div>
+                    <form id="login-form">
+                        <div class="input-group">
+                            <label>Nome</label>
+                            <input type="text" id="login-name" placeholder="Seu nome" required>
+                        </div>
+                        <div class="input-group">
+                            <label>Email</label>
+                            <input type="email" id="login-email" placeholder="seu@email.com" required>
+                        </div>
+                        <button type="submit" class="btn-primary">Entrar no Jogo</button>
+                    </form>
+                    <p class="login-hint">Coloque seu nome e email para salvar seu progresso!</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- MENU PRINCIPAL -->
+        <div id="menu-screen" class="screen">
+            <div class="menu-header">
+                <div>
+                    <h1>CPIQuest</h1>
+                    <p>Aprenda. Evolua e Se Divirta.</p>
+                </div>
+                <button onclick="showScreen('settings-screen')" class="btn-icon">⚙️</button>
+            </div>
+
+            <div class="player-card">
+                <div class="player-avatar" onclick="showScreen('avatar-screen')">
+                    <canvas id="menu-avatar" width="72" height="108"></canvas>
+                    <span class="edit-badge">✏️</span>
+                </div>
+                <div class="player-info">
+                    <div>
+                        <span id="player-name" class="player-name"></span>
+                        <span id="player-level" class="level-badge"></span>
+                    </div>
+                    <div class="player-stats">
+                        <span>⭐ <span id="player-stars">0</span></span>
+                        <span>⚡ <span id="player-score">0</span></span>
+                        <span>📊 <span id="player-progress">0/30</span></span>
+                    </div>
+                    <div class="xp-bar">
+                        <div id="xp-fill" class="xp-fill"></div>
+                    </div>
+                </div>
+            </div>
+
+            <h3 class="section-title">Mundos</h3>
+            <div id="worlds-list" class="worlds-list"></div>
+
+            <h3 class="section-title">Mais</h3>
+            <div class="quick-actions">
+                <button onclick="showScreen('ranking-screen')" class="action-btn">
+                    <span>🏆</span>
+                    <strong>Ranking</strong>
+                    <small>Veja sua posição</small>
+                </button>
+                <button onclick="selectWorld(1)" class="action-btn">
+                    <span>🗺️</span>
+                    <strong>Mapa Geral</strong>
+                    <small>Visão completa</small>
+                </button>
+            </div>
+        </div>
+
+        <!-- TELA DE MUNDO -->
+        <div id="world-screen" class="screen">
+            <div class="world-header">
+                <button onclick="showScreen('menu-screen')" class="btn-icon">←</button>
+                <div id="world-title"></div>
+                <div></div>
+            </div>
+            <div id="world-stages" class="world-stages"></div>
+        </div>
+
+        <!-- TELA DE FASE -->
+        <div id="stage-screen" class="screen">
+            <div class="stage-header">
+                <button onclick="backToWorld()" class="btn-icon">←</button>
+                <div id="stage-title"></div>
+                <div id="stage-difficulty"></div>
+            </div>
+            <div id="stage-content" class="stage-content"></div>
+        </div>
+
+        <!-- TELA DE AVATAR -->
+        <div id="avatar-screen" class="screen">
+            <div class="screen-header">
+                <button onclick="showScreen('menu-screen')" class="btn-icon">←</button>
+                <h1>Personalizar Personagem</h1>
+                <div></div>
+            </div>
+            <div id="avatar-preview">
+                <canvas id="avatar-canvas" width="120" height="180"></canvas>
+            </div>
+            <div id="avatar-tabs" class="avatar-tabs"></div>
+            <div id="avatar-options" class="avatar-options"></div>
+            <button onclick="saveAvatar()" class="btn-primary btn-full">Salvar Personagem</button>
+        </div>
+
+        <!-- TELA DE RANKING -->
+        <div id="ranking-screen" class="screen">
+            <div class="screen-header">
+                <button onclick="showScreen('menu-screen')" class="btn-icon">←</button>
+                <h1>🏆 Hall da Fama</h1>
+                <div></div>
+            </div>
+            <div id="ranking-list" class="ranking-list"></div>
+        </div>
+
+        <!-- TELA DE CONFIGURAÇÕES -->
+        <div id="settings-screen" class="screen">
+            <div class="screen-header">
+                <button onclick="showScreen('menu-screen')" class="btn-icon">←</button>
+                <h1>Configurações</h1>
+                <div></div>
+            </div>
+            <div class="settings-content">
+                <div class="settings-card">
+                    <h3>👤 Conta</h3>
+                    <p id="settings-name"></p>
+                    <p id="settings-email"></p>
+                </div>
+                <button onclick="logout()" class="btn-logout">🚪 Sair da Conta</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="timer-display" style="position:fixed; top:10px; right:20px; z-index:200; 
+        background:rgba(0,0,0,0.8); padding:8px 16px; border-radius:20px; 
+        font-weight:700; font-size:16px; color:#10b981; display:none"></div>
+
+    <div id="vidas-display" style="position:fixed; top:10px; left:20px; z-index:200; 
+        background:rgba(0,0,0,0.8); padding:8px 16px; border-radius:20px; 
+        font-weight:700; font-size:16px; color:#ef4444; display:none">❤️❤️❤️
+    </div>
+
+    <!-- MUNDO 1 - Informática -->
+    <audio id="som-acerto-m1" preload="auto" src="sounds/acertou-m1.mp3"></audio>
+    <audio id="som-erro-m1" preload="auto" src="sounds/errou-m1.m4a"></audio>
+    <audio id="som-gameover-m1" preload="auto" src="sounds/gameover-m1.mp3"></audio>
+    <audio id="som-vitoria-m1" preload="auto" src="sounds/vitoria-m1.m4a"></audio>
+
+    <!-- MUNDO 2 - MCom -->
+    <audio id="som-acerto-m2" preload="auto" src="sounds/acertou-m2.m4a"></audio>
+    <audio id="som-erro-m2" preload="auto" src="sounds/errou-m2.m4a"></audio>
+    <audio id="som-gameover-m2" preload="auto" src="sounds/gameover-m2.m4a"></audio>
+    <audio id="som-vitoria-m2" preload="auto" src="sounds/vitoria-m2.m4a"></audio>
+
+    <!-- MUNDO 3 - CGID -->
+    <audio id="som-acerto-m3" preload="auto" src="sounds/acertou-m3.mp4"></audio>
+    <audio id="som-erro-m3" preload="auto" src="sounds/errou-m3.mp4"></audio>
+    <audio id="som-gameover-m3" preload="auto" src="sounds/gameover-m3.mp3"></audio>
+    <audio id="som-vitoria-m3" preload="auto" src="sounds/vitoria-m3.mp3"></audio>
+
+    <!-- Botão de Silenciar Sons -->
+    <button id="sound-toggle" style="
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: rgba(15, 23, 42, 0.9);
+        border: 2px solid rgba(59, 130, 246, 0.5);
+        color: #60a5fa;
+        font-size: 24px;
+        cursor: pointer;
+        z-index: 999;
+        backdrop-filter: blur(10px);
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    ">
+        🔊
+    </button>
+
+    <script src="gameData.js"></script>
+    <script src="practiceData.js"></script>
+
+    <script src="script.js"></script>
+    <script src="simuladores/windows.js"></script>
+    <script src="simuladores/word.js"></script>
+    <script src="simuladores/excel.js"></script>
+    <script src="simuladores/mapa.js"></script>
+    <script src="simuladores/norte.js"></script>
+    <script src="simuladores/timeline.js"></script>
+    <script src="simuladores/fluxo.js"></script>
+    <script src="simuladores/crc.js"></script>
+    <script src="simuladores/calculadora.js"></script>
+    <script src="simuladores/checklist.js"></script>
+    <script src="simuladores/relatorio.js"></script>
+    <script src="simuladores/montagem.js"></script>
+    <script src="simuladores/govbr.js"></script>
+    <script src="simuladores/trem_mapa.js"></script>
+    <script src="simuladores/evento.js"></script>
+    <script src="simuladores/desfazimento.js"></script>
+    <script src="simuladores/solicitacao.js"></script>
+    <script src="simuladores/act.js"></script>
+    <script src="simuladores/pixelart.js"></script>
+    <script src="simuladores/termo_excel.js"></script>
+    <script src="simuladores/prestacao.js"></script>
+    <script src="simuladores/corrida_crc.js"></script>
+    <script src="simuladores/quiz_final.js"></script>
+</body>
+</html>
