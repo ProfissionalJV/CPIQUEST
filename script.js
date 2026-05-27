@@ -30,9 +30,7 @@ let distratorElement = null;
 let aleatorioTimeout = null;
 let shuffleCount = 0;
 let maxShuffle = 0;
-let opcoesCorretasOriginal = null;
-let indiceCorretoDinamico = null;
-let falsoFinalAtivo = false; 
+let falsoFinalAtivo = false;
 
 // ═══════════════════════════════════════════════════════════
 // CONTROLE DE SOM (MUTE)
@@ -797,7 +795,6 @@ function shuffleArray(arr) {
 function startQuiz() {
     phase = 'quiz';
 
-    // MOSTRAR TIMER E VIDAS APENAS NO QUIZ
     const timerDisplay = document.getElementById('timer-display');
     if (timerDisplay) {
         timerDisplay.style.display = 'block';
@@ -820,15 +817,21 @@ function startQuiz() {
         vidasDisplay.innerHTML = '❤️❤️❤️';
     }
 
-    // Prepara perguntas do quiz
+    // 🔥 ADAPTA O NOVO FORMATO COM ID PARA O FORMATO ANTIGO (TEMPORÁRIO)
     quizQuestions = currentStage.quiz.map(q => {
-        const indexed = q.options.map((opt, i) => ({ opt, isCorrect: i === q.correct }));
-        const shuffled = shuffleArray(indexed);
+        // Converte o novo formato (com options sendo array de objetos com id/text/isCorrect)
+        // para o formato antigo (options array de strings, correct como índice)
+        const optionsArray = q.options.map(opt => opt.text);
+        const correctIndex = q.options.findIndex(opt => opt.isCorrect === true);
+        
         return {
-            ...q,
-            options: shuffled.map(x => x.opt),
-            correct: shuffled.findIndex(x => x.isCorrect),
-            _pegadinhaInfo: null
+            question: q.question,
+            imagem: q.imagem || null,
+            options: optionsArray,
+            correct: correctIndex,
+            // Guarda os dados originais para o renderQuiz
+            _originalOptions: q.options,
+            _isNewFormat: true
         };
     });
 
@@ -840,74 +843,78 @@ function startQuiz() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// EMBARALHAMENTO DINÂMICO - FAZ O POVO SE LASCAR 😈
+// EMBARALHAMENTO POR ID - INFALÍVEL
 // ═══════════════════════════════════════════════════════════
 
-function iniciarEmbaralhamentoDinamico() {
-    shuffleCount = 0;
-    falsoFinalAtivo = false;
+let intervaloEmbaralhamento = null;
+let idRespostaCorreta = null;
 
-    maxShuffle = Math.floor(Math.random() * 8) + 3; // 3 a 10 embaralhamentos
-    console.log(`🎲 EMBARALHAMENTO MALUCO ATIVADO! Vai trocar ${maxShuffle} vezes`);
-
-    if (aleatorioTimeout) {
-        clearTimeout(aleatorioTimeout);
-        aleatorioTimeout = null;
+function iniciarEmbaralhamentoPorId() {
+    if (intervaloEmbaralhamento) {
+        clearInterval(intervaloEmbaralhamento);
+        intervaloEmbaralhamento = null;
     }
-
-    function executarEmbaralhamento() {
+    
+    let trocasRealizadas = 0;
+    const maxTrocas = Math.floor(Math.random() * 5) + 3;
+    
+    console.log(`🎲 EMBARALHAMENTO POR ID: ${maxTrocas} trocas`);
+    
+    intervaloEmbaralhamento = setInterval(() => {
         const botoes = document.querySelectorAll('.quiz-option');
-        if (botoes.length === 0) return;
-
-        // Pega os textos atuais das opções
-        const opcoesTextos = Array.from(botoes).map(btn => {
-            const span = btn.querySelector('span:last-child');
-            return span ? span.textContent : '';
-        });
-
-        // Embaralha os textos
-        const textosEmbaralhados = shuffleArray([...opcoesTextos]);
-
-        // Aplica os textos embaralhados nos botões
-        botoes.forEach((btn, idx) => {
-            const span = btn.querySelector('span:last-child');
-            if (span) {
-                span.textContent = textosEmbaralhados[idx];
-            }
-        });
-
-        // Encontra onde está a resposta correta agora
-        const novoIndiceCorreto = textosEmbaralhados.findIndex(texto => texto === opcoesCorretasOriginal);
-        indiceCorretoDinamico = novoIndiceCorreto;
-        
-        // Atualiza o índice correto no quizQuestions
-        if (quizQuestions[quizIndex]) {
-            quizQuestions[quizIndex]._correctIndex = novoIndiceCorreto;
-        }
-
-        shuffleCount++;
-        console.log(`🔄 EMBARALHAMENTO ${shuffleCount}/${maxShuffle} - Resposta correta foi para posição ${novoIndiceCorreto}`);
-
-        // Decide se continua ou para
-        if (shuffleCount >= maxShuffle) {
-            // Falso final: às vezes engana o jogador achando que acabou
-            if (!falsoFinalAtivo && Math.random() < 0.35) {
-                falsoFinalAtivo = true;
-                console.log(`🎭 FALSO FINAL! O jogador vai achar que acabou, mas vai mexer de novo... 😈`);
-                aleatorioTimeout = setTimeout(executarEmbaralhamento, 2000);
-            } else {
-                console.log(`✅ EMBARALHAMENTO FINALIZADO! O jogador sofreu ${shuffleCount} vezes!`);
-            }
+        if (botoes.length === 0) {
+            clearInterval(intervaloEmbaralhamento);
+            intervaloEmbaralhamento = null;
             return;
         }
-
-        // Tempo aleatório entre 1 e 3 segundos para o próximo embaralhamento
-        const tempoAleatorio = Math.random() * 2000 + 1000;
-        aleatorioTimeout = setTimeout(executarEmbaralhamento, tempoAleatorio);
-    }
-
-    // Primeiro embaralhamento depois de 1.5 segundos
-    aleatorioTimeout = setTimeout(executarEmbaralhamento, 1500);
+        
+        // 🔥 PEGA OS DADOS COMPLETOS DE CADA BOTÃO (ID + TEXTO)
+        const dadosCompletos = Array.from(botoes).map(btn => ({
+            id: btn.getAttribute('data-opt-id'),
+            text: btn.querySelector('span:last-child')?.textContent || ''
+        }));
+        
+        if (dadosCompletos.length > 0 && dadosCompletos.every(d => d.id && d.text)) {
+            // 🔥 EMBARALHA OS DADOS COMPLETOS (ID JUNTO COM TEXTO)
+            const dadosEmbaralhados = shuffleArray([...dadosCompletos]);
+            
+            // 🔥 APLICA OS DADOS EMBARALHADOS (ID E TEXTO JUNTOS)
+            botoes.forEach((btn, idx) => {
+                const span = btn.querySelector('span:last-child');
+                if (span) {
+                    // Atualiza o ID
+                    btn.setAttribute('data-opt-id', dadosEmbaralhados[idx].id);
+                    // Atualiza o texto
+                    span.textContent = dadosEmbaralhados[idx].text;
+                }
+            });
+            
+            // 🔥 ATUALIZA O _CORRECTINDEX E _CORRECTID
+            const q = quizQuestions[quizIndex];
+            if (q && q._correctId) {
+                // Encontra em qual posição está o ID correto agora
+                let novoIndice = -1;
+                botoes.forEach((btn, idx) => {
+                    if (btn.getAttribute('data-opt-id') === q._correctId) {
+                        novoIndice = idx;
+                    }
+                });
+                if (novoIndice !== -1) {
+                    q._correctIndex = novoIndice;
+                    console.log(`🔄 TROCA ${trocasRealizadas + 1}/${maxTrocas} - ID correto agora na posição ${novoIndice}`);
+                }
+            }
+        }
+        
+        trocasRealizadas++;
+        
+        if (trocasRealizadas >= maxTrocas) {
+            clearInterval(intervaloEmbaralhamento);
+            intervaloEmbaralhamento = null;
+            console.log(`✅ EMBARALHAMENTO POR ID FINALIZADO!`);
+        }
+        
+    }, Math.random() * 2000 + 1500);
 }
 
 function renderQuiz() {
@@ -923,14 +930,7 @@ function renderQuiz() {
     let options = [...q.options];
     let correctIndex = q.correct;
 
-    // GARANTIA: A resposta correta está nas opções
-    const respostaCorretaFinal = options[correctIndex];
-    if (!options.includes(respostaCorretaFinal)) {
-        options.push(respostaCorretaFinal);
-        correctIndex = options.length - 1;
-    }
-
-    // DISTRATOR - Opção que pisca
+    // DISTRATOR
     let distratorIndex = -1;
     if (Math.random() < 0.5 && options.length >= 2) {
         const todasOpcoes = [];
@@ -948,9 +948,33 @@ function renderQuiz() {
     const finalCorrectIndex = shuffled.findIndex(x => x.isCorrect);
     const finalDistratorIndex = shuffled.findIndex(x => x.isDistrator);
 
+    // 🔥 SALVA OS IDs DAS OPÇÕES (do gameData original)
+    const idsDasOpcoes = [];
+    if (q._originalOptions) {
+        // Mapeia cada texto para seu ID correspondente
+        finalOptions.forEach(opt => {
+            const optOriginal = q._originalOptions.find(o => o.text === opt);
+            idsDasOpcoes.push(optOriginal ? optOriginal.id : `opt_${idsDasOpcoes.length}`);
+        });
+    } else {
+        // Fallback: cria IDs genéricos
+        for (let i = 0; i < finalOptions.length; i++) {
+            idsDasOpcoes.push(`opt_${i}`);
+        }
+    }
+
+    // 🔥 SALVA O ID CORRETO
+    let idCorreto = null;
+    if (q._originalOptions) {
+        const opcaoCorreta = q._originalOptions.find(opt => opt.isCorrect === true);
+        idCorreto = opcaoCorreta ? opcaoCorreta.id : null;
+    }
+
     // Salva os dados para o answerQuiz
-    quizQuestions[quizIndex]._correctIndex = finalCorrectIndex;
     quizQuestions[quizIndex]._options = finalOptions;
+    quizQuestions[quizIndex]._ids = idsDasOpcoes;
+    quizQuestions[quizIndex]._correctId = idCorreto;
+    quizQuestions[quizIndex]._correctIndex = finalCorrectIndex;
     quizQuestions[quizIndex]._distratorIndex = finalDistratorIndex;
 
     const labels = ['A', 'B', 'C', 'D', 'E'];
@@ -983,7 +1007,7 @@ function renderQuiz() {
             ` : ''}
             
             ${finalOptions.slice(0, 5).map((opt, i) => {
-        return `<button class="quiz-option" id="opt-${i}" onclick="answerQuiz(${i}, ${Date.now()})" style="padding:16px 18px; margin-bottom:10px; font-size:15px; width:100%; text-align:left; display:flex; align-items:center; gap:12px; background:#0f172a; border:2px solid #334155; border-radius:10px; color:#cbd5e1; cursor:pointer">
+        return `<button class="quiz-option" id="opt-${i}" data-opt-id="${idsDasOpcoes[i]}" onclick="answerQuiz(${i}, ${Date.now()})" style="padding:16px 18px; margin-bottom:10px; font-size:15px; width:100%; text-align:left; display:flex; align-items:center; gap:12px; background:#0f172a; border:2px solid #334155; border-radius:10px; color:#cbd5e1; cursor:pointer">
                     <span class="opt-letter" style="background:${accent}20; color:${accent}; font-size:13px; font-weight:800; width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0">${labels[i]}</span>
                     <span style="flex:1; font-weight:500">${opt}</span>
                 </button>`;
@@ -998,21 +1022,14 @@ function renderQuiz() {
     </div>
 `;
 
-    // EMBARALHAMENTO DINÂMICO
-    const nivel = getNivelPegadinha();
-    if (nivel === PEGADINHA_NIVEIS.dificil || nivel === PEGADINHA_NIVEIS.muitoDificil) {
-        const deveEmbaralhar = Math.random() < 0.5;
-        if (deveEmbaralhar) {
-            // 🔥 CORREÇÃO: define a variável antes de usar
-            const textoCorretoOriginal = q.options[q.correct];
-            opcoesCorretasOriginal = textoCorretoOriginal;
-            indiceCorretoDinamico = finalCorrectIndex;
-            setTimeout(() => {
-                iniciarEmbaralhamentoDinamico();
-            }, 500);
-        }
+    // EMBARALHAMENTO POR ID
+    const deveEmbaralhar = Math.random() < 0.7;
+    if (deveEmbaralhar && idsDasOpcoes.length > 0) {
+        setTimeout(() => {
+            iniciarEmbaralhamentoPorId();
+        }, 1000);
     }
-    
+
     // DISTRATOR PISCANTE
     if (finalDistratorIndex !== -1 && finalDistratorIndex < 5) {
         setTimeout(() => {
@@ -1176,10 +1193,9 @@ function updateTimerDisplay() {
 }
 
 function answerQuiz(selectedIndex, tempoRespostaMs) {
-    // Para o embaralhamento se estiver ativo
-    if (aleatorioTimeout) {
-        clearTimeout(aleatorioTimeout);
-        aleatorioTimeout = null;
+    if (intervaloEmbaralhamento) {
+        clearInterval(intervaloEmbaralhamento);
+        intervaloEmbaralhamento = null;
     }
 
     if (quizAnswered) return;
@@ -1192,17 +1208,28 @@ function answerQuiz(selectedIndex, tempoRespostaMs) {
 
     const q = quizQuestions[quizIndex];
     
-    // 🔥 USA O ÍNDICE DINÂMICO SE EXISTIR (embaralhamento ativo)
-    let correctIndex;
-    if (indiceCorretoDinamico !== null && indiceCorretoDinamico !== undefined) {
-        correctIndex = indiceCorretoDinamico;
-        console.log(`🎯 USANDO ÍNDICE DINÂMICO: ${correctIndex}`);
-    } else {
-        correctIndex = q._correctIndex;
-    }
+    // 🔥 PEGA O ID DO BOTÃO CLICADO
+    const btnSelecionado = document.getElementById(`opt-${selectedIndex}`);
+    const idSelecionado = btnSelecionado ? btnSelecionado.getAttribute('data-opt-id') : null;
     
-    const isCorrect = (selectedIndex === correctIndex);
+    // 🔥 COMPARA COM O ID CORRETO
+    const isCorrect = (idSelecionado === q._correctId);
+    
+    // 🔥 O ÍNDICE CORRETO É O QUE ESTÁ SALVO EM q._correctIndex (atualizado pelo embaralhamento)
+    const correctIndex = q._correctIndex;
+    
+    // Texto correto para mostrar no feedback
+    const textoCorreto = q.options[q.correct];
+    
+    console.log("═══════════════════════════════════");
+    console.log("📌 ID selecionado:", idSelecionado);
+    console.log("📌 ID correto:", q._correctId);
+    console.log("📌 Índice correto atual:", correctIndex);
+    console.log("📌 Acertou?", isCorrect ? "SIM ✅" : "NÃO ❌");
+    console.log("═══════════════════════════════════");
+
     const foiRapido = (Date.now() - tempoRespostaMs) < 5000;
+    const nivel = getNivelPegadinha();
 
     // Marca visual
     document.querySelectorAll('.quiz-option').forEach((btn, idx) => {
@@ -1229,34 +1256,32 @@ function answerQuiz(selectedIndex, tempoRespostaMs) {
 
         if (foiRapido) {
             timeLeft = Math.min(120, timeLeft + 5);
-            feedbackHTML += '<br><span style="color:#fbbf24; font-size:12px">⚡ RAPIDÃO! +5 segundos</span>';
+            feedbackHTML += '<br><span style="color:#fbbf24;">⚡ RAPIDÃO! +5 segundos</span>';
             updateTimerDisplay();
         }
 
         if (quizScore === quizQuestions.length) {
-            feedbackHTML += '<br><span style="color:#fbbf24; font-size:14px; font-weight:700">🏆 PERFEITO!</span>';
+            feedbackHTML += '<br><span style="color:#fbbf24;">🏆 PERFEITO!</span>';
         }
     } else {
         atualizarCombo(false);
         timeLeft = Math.max(10, timeLeft - 8);
         const msg = MENSAGENS_ERRO[Math.floor(Math.random() * MENSAGENS_ERRO.length)];
         feedbackHTML = `<span style="color:#ef4444; font-weight:700">❌ ${msg}</span>`;
-        feedbackHTML += '<br><span style="color:#64748b; font-size:12px">⏱️ -8 segundos</span>';
-        
-        const respostaCorreta = q.options[q.correct];
-        feedbackHTML += `<br><span style="color:#10b981; font-size:13px; font-weight:600">✅ RESPOSTA CORRETA: ${respostaCorreta}</span>`;
-        
+        feedbackHTML += `<br><span style="color:#64748b;">⏱️ -8 segundos</span>`;
+        feedbackHTML += `<br><span style="color:#10b981;">✅ RESPOSTA CORRETA: ${textoCorreto}</span>`;
         tocarSom('erro');
         updateTimerDisplay();
         atualizarDisplayVidas();
 
         if (vidas <= 0) {
             const gameoverMsg = MENSAGENS_GAMEOVER[Math.floor(Math.random() * MENSAGENS_GAMEOVER.length)];
-            feedbackHTML += `<br><br><span style="color:#dc2626; font-weight:700; font-size:16px">💀 ${gameoverMsg}</span>`;
-            feedbackHTML += `<br><button onclick="backToWorld()" style="background:#3b82f6; border:none; padding:8px 16px; border-radius:8px; color:white; margin-top:12px; cursor:pointer">🗺️ VOLTAR PRO MAPA</button>`;
+            feedbackHTML += `<br><br><span style="color:#dc2626;">💀 ${gameoverMsg}</span>`;
+            feedbackHTML += `<br><button onclick="backToWorld()" style="background:#3b82f6; border:none; padding:8px 16px; border-radius:8px; color:white; margin-top:12px; cursor:pointer;">🗺️ VOLTAR PRO MAPA</button>`;
             document.getElementById('quiz-footer').style.display = 'none';
             if (timerInterval) clearInterval(timerInterval);
             tocarSom('gameover');
+            document.getElementById('quiz-feedback').innerHTML = feedbackHTML;
             return;
         }
     }
