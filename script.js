@@ -613,11 +613,18 @@ function backToWorld() {
 }
 
 function nextStage() {
+    // 🔥 VERIFICA SE O USUÁRIO ESTÁ LOGADO
+    if (!currentProfile || !currentStage) {
+        console.error("❌ Usuário não está logado ou fase não carregada!");
+        showToast("⚠️ Erro ao avançar fase. Faça login novamente.", "error");
+        backToWorld();
+        return;
+    }
+    
     const nextId = currentStage.id + 1;
     const next = getStageById(nextId);
     
     if (next) {
-        // 🔥 Atualiza o mundo atual para o mundo da próxima fase
         const novoMundo = getWorldById(next.worldId);
         if (novoMundo) {
             currentWorld = novoMundo;
@@ -625,7 +632,6 @@ function nextStage() {
         }
         startStage(next.id);
     } else {
-        // Se não tem próxima fase (fase 30), volta pro menu
         console.log("🏆 Jogo completo! Voltando ao menu.");
         showScreen('menu-screen');
     }
@@ -2008,6 +2014,35 @@ async function finishStage() {
     document.getElementById('timer-display').style.display = 'none';
     document.getElementById('vidas-display').style.display = 'none';
 
+    // 🔥 VERIFICA SE O USUÁRIO ESTÁ LOGADO
+    if (!currentProfile || !currentUser) {
+        console.error("❌ Usuário não está logado!");
+        showToast("⚠️ Você precisa estar logado para salvar o progresso!", "error");
+        
+        // Mostra tela de conclusão sem salvar
+        const accent = currentWorld?.color || '#2563EB';
+        document.getElementById('stage-content').innerHTML = `
+            <div class="completion-screen">
+                <div class="big-emoji">⚠️</div>
+                <h2>Fase Concluída!</h2>
+                <p style="color:#fbbf24; margin-bottom:20px">⚠️ Progresso NÃO foi salvo! Faça login novamente.</p>
+                <div class="completion-actions">
+                    <button style="background:#334155; padding:14px 28px; border-radius:12px; border:none; font-weight:700; font-size:15px; cursor:pointer; color:white" onclick="backToWorld()">← Voltar ao Menu</button>
+                    <button style="background:${accent}; padding:14px 28px; border-radius:12px; border:none; font-weight:700; font-size:15px; cursor:pointer; color:white" onclick="logout()">🔑 Fazer Login</button>
+                </div>
+            </div>
+        `;
+        return;
+    }
+
+    // 🔥 GARANTE QUE currentProfile.completed_stages EXISTE
+    if (!currentProfile.completed_stages) {
+        currentProfile.completed_stages = [];
+    }
+    if (!currentProfile.stage_stars) {
+        currentProfile.stage_stars = {};
+    }
+
     // Estrelas do Quiz
     const pct = quizQuestions.length > 0 ? quizScore / quizQuestions.length : 0;
     const quizStars = Math.round(pct * 5);
@@ -2037,25 +2072,24 @@ async function finishStage() {
         const checks = (practiceState.answers || []);
         const correct = checks.filter(Boolean).length;
         practiceStars = Math.round((correct / 3) * 5);
-    } else if (practiceData?.type === 'simulation' || practiceData?.type === 'simulation_windows' || practiceData?.type === 'simulation_excel' || practiceData?.type === 'simulation_map' || practiceData?.type === 'simulation_word' || practiceData?.type === 'simulation_norte' || practiceData?.type === 'simulation_timeline' || practiceData?.type === 'simulation_fluxo' || practiceData?.type === 'simulation_crc' || practiceData?.type === 'simulation_calculadora' || practiceData?.type === 'simulation_checklist' || practiceData?.type === 'simulation_relatorio' || practiceData?.type === 'simulation_montagem' || practiceData?.type === 'simulation_govbr' || practiceData?.type === 'simulation_trem_mapa' || practiceData?.type === 'simulation_evento' || practiceData?.type === 'simulation_desfazimento' || practiceData?.type === 'simulation_solicitacao' || practiceData?.type === 'simulation_act' || practiceData?.type === 'simulation_pixelart' || practiceData?.type === 'simulation_termo_excel' || practiceData?.type === 'simulation_prestacao' || practiceData?.type === 'simulation_corrida_crc' || practiceData?.type === 'simulation_quiz_final') {
-        // Se completou a simulação, 5 estrelas
-        practiceStars = 5;
-        console.log('SIMULATION STARS SET TO:', practiceStars);
+    } else if (practiceData?.type && practiceData.type.startsWith('simulation')) {
+        practiceStars = window._practiceStars || 5;
     }
 
-    // Garantir mínimo de 1 estrela se fez alguma coisa
-    if (practiceStars < 1 && simTaskIndex > 0) practiceStars = 1;
+    if (practiceStars < 1 && window.simTaskIndex > 0) practiceStars = 1;
     if (practiceStars > 5) practiceStars = 5;
 
     const totalStars = Math.max(quizStars, practiceStars);
 
     // Salvar no banco
     const completed = [...(currentProfile.completed_stages || [])];
-    if (!completed.includes(currentStage.id)) completed.push(currentStage.id);
+    if (!completed.includes(currentStage.id)) {
+        completed.push(currentStage.id);
+    }
     const ss = { ...(currentProfile.stage_stars || {}) };
     ss[currentStage.id] = Math.max(ss[currentStage.id] || 0, totalStars);
     const newScore = (currentProfile.total_score || 0) + totalStars * 100;
-    const nextStage = Math.max(currentProfile.current_stage || 1, currentStage.id + 1);
+    const nextStageNum = Math.max(currentProfile.current_stage || 1, currentStage.id + 1);
 
     try {
         const res = await fetch(`${API}/players/${currentProfile.id}`, {
@@ -2065,19 +2099,31 @@ async function finishStage() {
                 completed_stages: completed,
                 stage_stars: ss,
                 total_score: newScore,
-                current_stage: nextStage
+                current_stage: nextStageNum
             })
         });
-        currentProfile = { ...currentProfile, completed_stages: completed, stage_stars: ss, total_score: newScore, current_stage: nextStage };
+        
+        if (!res.ok) {
+            throw new Error(`Erro HTTP: ${res.status}`);
+        }
+        
+        currentProfile.completed_stages = completed;
+        currentProfile.stage_stars = ss;
+        currentProfile.total_score = newScore;
+        currentProfile.current_stage = nextStageNum;
+        
+        console.log("✅ Progresso salvo com sucesso!");
+        
     } catch (e) {
         console.error('Erro ao salvar:', e);
+        showToast("⚠️ Erro ao salvar progresso! Verifique sua conexão.", "error");
     }
 
     if (totalStars === 5) {
         var msgVitoria = MENSAGENS_VITORIA[Math.floor(Math.random() * MENSAGENS_VITORIA.length)];
-        setTimeout(function () {
-            showToast(msgVitoria, 'bonus');
-            tocarSom('vitoria');
+        setTimeout(function () { 
+            showToast(msgVitoria, 'bonus'); 
+            tocarSom('vitoria'); 
         }, 500);
     }
 
@@ -2117,8 +2163,8 @@ async function finishStage() {
     `;
 
     if (currentStage && currentStage.id === 30) {
-        setTimeout(function () {
-            showWelcomeDialogFinal();
+        setTimeout(function () { 
+            showWelcomeDialogFinal(); 
         }, 2000);
     }
 }
