@@ -296,6 +296,42 @@ def list_files():
             files.append(os.path.join(root, filename))
     return jsonify(files[:100])  # Limita a 100 arquivos
 
+
+@app.route('/admin/reset/<senha>')
+def reset_ranking(senha):
+    # 🔥 MUDE A SENHA AQUI
+    SENHA_SECRETA = "1984"
+    
+    if senha != SENHA_SECRETA:
+        return "🔒 Acesso negado! Senha incorreta."
+    
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        # Conta quantos jogadores tem
+        cur.execute('SELECT COUNT(*) FROM players')
+        total = cur.fetchone()[0]
+        
+        # Deleta todos
+        cur.execute('DELETE FROM players')
+        conn.commit()
+        
+        cur.close()
+        conn.close()
+        
+        return f"""
+        <html>
+        <body style="background:#0f172a; color:white; font-family:monospace; text-align:center; padding:50px">
+            <h1 style="color:#10b981">✅ RANKING LIMPO!</h1>
+            <p>{total} jogadores foram removidos.</p>
+            <a href="/" style="color:#3b82f6">Voltar ao jogo</a>
+        </body>
+        </html>
+        """
+    except Exception as e:
+        return f"❌ Erro: {e}"
+
 # ═══════════════════════════════════════════════════════════
 # INICIALIZAÇÃO
 # ═══════════════════════════════════════════════════════════
